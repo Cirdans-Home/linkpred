@@ -1,7 +1,7 @@
 import networkx as nx
 
 from ..evaluation import Scoresheet
-from ..network import rooted_pagerank, simrank
+from ..network import rooted_pagerank, simrank, nonlocal_pagerank
 from ..util import progressbar
 from .base import Predictor
 
@@ -98,4 +98,64 @@ class SimRank(Predictor):
                     v = nodelist[j]
                     if self.eligible(u, v):
                         res[(u, v)] = sim[i, j]
+        return res
+
+class NonLocalPageRank(Predictor):
+    def predict(self, nbunch=None, alpha=0.85, beta=0, weight="weight", k=None, type="power", gamma=1):
+        """Predict using rooted PageRank.
+
+        Parameters
+        ----------
+
+        nbunch : iterable collection of nodes, optional
+            node(s) to calculate PR for (default: all)
+
+        alpha : float, optional
+            PageRank probability that we will advance to a neighbour of the
+            current node in a random walk
+
+        beta : float, optional
+            Normally, we return to the root node with probability 1 - alpha.
+            With this parameter, we can also advance to a random other node in
+            the network with probability beta. Thus, we get back to the root
+            node with probability 1 - alpha - beta. This is off (0) by default.
+
+        weight : string or None, optional
+            The edge attribute that holds the numerical value used for
+            the edge weight.  If None then treat as unweighted.
+
+        k : int or None, optional
+            If `k` is `None`, this predictor is applied to the entire network.
+            If `k` is an int, the predictor is applied to a subgraph consisting
+            of the k-neighbourhood of the current node.
+            Results are often very similar but much faster.
+
+        type : string
+            If type is "power" the adjacency matrix is transformed by using the
+            function f(x) = 1/x^gamma, if type is "exponential" the adjacency matrix
+            is transformed by using the exponential function f(x) = exp(-gamma x)
+
+        gamma : parameter value for the transformation
+
+        See documentation for linkpred.network.rooted_pagerank for these
+        parameters.
+
+        """
+        res = Scoresheet()
+        if nbunch is None:
+            nbunch = self.G.nodes()
+        for u in progressbar(nbunch):
+            if not self.eligible_node(u):
+                continue
+            if k is None:
+                G = self.G
+            else:
+                # Restrict to the k-neighbourhood subgraph
+                G = nx.ego_graph(self.G, u, radius=k)
+
+            pagerank_scores = nonlocal_pagerank(G, u, alpha, beta, weight, type, gamma)
+
+            for v, w in pagerank_scores.items():
+                if w > 0 and u != v and self.eligible_node(v):
+                    res[(u, v)] += w
         return res

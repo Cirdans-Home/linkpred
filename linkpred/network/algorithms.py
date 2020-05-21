@@ -2,10 +2,11 @@ import logging
 
 import networkx as nx
 import numpy as np
+import scipy.sparse
 
 log = logging.getLogger(__name__)
 
-__all__ = ["rooted_pagerank", "simrank"]
+__all__ = ["rooted_pagerank", "simrank", "nonlocal_pagerank"]
 
 
 def rooted_pagerank(G, root, alpha=0.85, beta=0, weight="weight"):
@@ -94,3 +95,82 @@ def raw_google_matrix(G, nodelist=None, weight="weight"):
     # Langville & Meyer (2006)).
     M = M / M.sum(axis=1)
     return M
+
+def nonlocal_pagerank(G, root, alpha=0.85, beta=0, weight="weight", type="power", gamma=1):
+    """Return the NonLocal PageRank of all nodes with respect to node `root`
+
+    Parameters
+    ----------
+
+    G : a networkx.(Di)Graph
+        network to compute PR on
+
+    root : a node from the network
+        the node that will be the starting point of all random walks
+
+    alpha : float
+        PageRank probability that we will advance to a neighbour of the
+        current node in a random walk
+
+    beta : float or int
+        Normally, we return to the root node with probability 1 - alpha.
+        With this parameter, we can also advance to a random other node in the
+        network with probability beta. Thus, we get back to the root node with
+        probability 1 - alpha - beta. This is off (0) by default.
+
+    weight : string or None
+        The edge attribute that holds the numerical value used for
+        the edge weight.  If None then treat as unweighted.
+
+    type: string
+        If type is "power" the adjacency matrix is transformed by using the
+        function f(x) = 1/x^gamma, if type is "exponential" the adjacency matrix
+        is transformed by using the exponential function f(x) = exp(-gamma x)
+
+    gamma : parameter value for the transformation
+
+    """
+    personalization = dict.fromkeys(G, beta)
+    personalization[root] = 1 - beta
+
+    nodelist = G.nodes()
+    P = np.asarray(nx.floyd_warshall_numpy(G,weight=weight))
+    N = P.shape[0]
+    if type == "power":
+        P[P != 0] = 1.0/np.power(P[P != 0],gamma)
+    else:
+        P[P != 0] = np.exp(-gamma*P[P != 0])
+
+    S = scipy.array(P.sum(axis=1)).flatten()
+    S[S != 0] = 1.0 / S[S != 0]
+    Q = scipy.sparse.spdiags(S.T, 0, *P.shape, format='csr')
+    P = Q * P
+
+    # initial vector
+    x = scipy.repeat(1.0 / N, N)
+
+
+    # Personalization vector
+    if personalization is None:
+        p = scipy.repeat(1.0 / N, N)
+    else:
+        p = scipy.array([personalization.get(n, 0) for n in nodelist], dtype=float)
+        p = p / p.sum()
+
+    # Dangling nodes
+    dangling_weights = p
+    is_dangling = scipy.where(S == 0)[0]
+
+    max_iter=500
+    tol=1e-6
+    # power iteration: make up to max_iter iterations
+    for _ in range(max_iter):
+        xlast = x
+        x = alpha * (np.dot(x,P) + sum(x[is_dangling]) * dangling_weights) + \
+            (1 - alpha) * p
+        # check convergence, l1 norm
+        err = scipy.absolute(x - xlast).sum()
+        if err < N * tol:
+            return dict(zip(nodelist, map(float, x)))
+    return dict(zip(nodelist, map(float, x)))
+ 
