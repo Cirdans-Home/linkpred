@@ -10,14 +10,22 @@ Created on Thu May 21 17:50:19 2020
 
 import linkpred
 import random
+import networkx as nx
 from matplotlib import pyplot as plt
 from sklearn.metrics import auc
-from numpy import floor, logspace, array
+from numpy import floor, logspace, array, asarray
 
 random.seed(100)
 
 # Read network
-G = linkpred.read_network('NonLocalPageRankExamples/USAir97.net')
+G = linkpred.read_network('NonLocalPageRankExamples/netscience.net')
+
+# We remove self loops
+G.remove_edges_from(nx.selfloop_edges(G))
+
+# We treat unweighted networks:
+for u,v,d in G.edges(data=True):
+    d['weight']=1
 
 # Create test network
 test = G.subgraph(random.sample(G.nodes(), floor(0.40*G.number_of_nodes()).astype(int) ))
