@@ -6,8 +6,6 @@ described in:
     [1] Cipolla, S., Durastante, F., Tudisco, F. NonLocal PageRank
 Created on Thu May 21 17:50:19 2020
 
-
-@author: Fabio Durastante
 """
 
 import linkpred
@@ -28,6 +26,20 @@ test = G.subgraph(random.sample(G.nodes(), floor(0.40*G.number_of_nodes()).astyp
 training = G.copy()
 training.remove_edges_from(test.edges())
 
+## LinkPrediction with the Baseline method
+baseline = linkpred.predictors.Random(training, excluded=training.edges())
+baseline_results = baseline.predict()
+
+test_set = set(linkpred.evaluation.Pair(u, v) for u, v in test.edges())
+evaluationbaseline = linkpred.evaluation.EvaluationSheet(baseline_results, test_set)
+aucbaseline = auc(evaluationbaseline.recall(), evaluationbaseline.precision())
+
+## Plotting the Precision/Recall curves
+fig, ax = plt.subplots(figsize=[6.4, 4.8],dpi=300)
+plt.xlabel('Recall')
+plt.ylabel('Precision')
+ax.loglog(evaluationbaseline.recall(), evaluationbaseline.precision(),label='Baseline')
+
 ## LinkPredicition with the Local (Rooted) PageRank
 rootpr = linkpred.predictors.RootedPageRank(training, excluded=training.edges())
 rootpr_results = rootpr.predict()
@@ -37,14 +49,11 @@ evaluationpr = linkpred.evaluation.EvaluationSheet(rootpr_results, test_set)
 auclocal = auc(evaluationpr.recall(), evaluationpr.precision())
 
 ## Plotting the Precision/Recall curves
-fig, ax = plt.subplots(figsize=[6.4, 4.8],dpi=300)
-plt.xlabel('Recall')
-plt.ylabel('Precision')
 ax.plot(evaluationpr.recall(), evaluationpr.precision(),label='PageRank')
 
 ## LinkPrediction with the NonLocal (Rooted) PageRank
 index = 0
-aucnonlocal = array([0,1,2,3,4,5])
+aucnonlocal = array([0.,1.,2.,3.,4.,5.])
 for gamma in logspace(-2.0, 1.0, num=6, endpoint=True): # Coefficient of the NonLocality
     rootnonlocal = linkpred.predictors.NonLocalPageRank(training, excluded=training.edges())
     rootnonlocal_results = rootnonlocal.predict(gamma = gamma)
@@ -58,3 +67,4 @@ for gamma in logspace(-2.0, 1.0, num=6, endpoint=True): # Coefficient of the Non
 #ax.axis('equal')
 leg = ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., frameon=False);
 fig
+fig.savefig('USAir97.eps', format='eps')
