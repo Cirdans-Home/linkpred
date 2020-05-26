@@ -4,7 +4,8 @@ from ..evaluation import Scoresheet
 from ..network import rooted_pagerank, simrank, nonlocal_pagerank
 from ..util import progressbar
 from .base import Predictor
-
+import numpy as np
+import scipy as sp
 
 class RootedPageRank(Predictor):
     def predict(self, nbunch=None, alpha=0.85, beta=0, weight="weight", k=None):
@@ -163,9 +164,9 @@ class NonLocalPageRank(Predictor):
             else:
                 P[P != 0] = np.exp(-gamma*P[P != 0])
         
-            S = scipy.array(P.sum(axis=1)).flatten()
+            S = sp.array(P.sum(axis=1)).flatten()
             S[S != 0] = 1.0 / S[S != 0]
-            Q = scipy.sparse.spdiags(S.T, 0, *P.shape, format='csr')
+            Q = sp.sparse.spdiags(S.T, 0, *P.shape, format='csr')
             P = Q * P
             
             pagerank_scores = nonlocal_pagerank(G, P, S, u, alpha, beta, weight, type, gamma)
