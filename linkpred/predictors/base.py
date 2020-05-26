@@ -30,7 +30,7 @@ class Predictor(object):
 
     """
 
-    def __init__(self, G, eligible=None, excluded=None):
+    def __init__(self, G, DistanceMatrix=None, eligible=None, excluded=None):
         """
         Initialize predictor
 
@@ -38,6 +38,9 @@ class Predictor(object):
         ---------
         G : nx.Graph
             a graph
+            
+        W : distance matrix, is used for the NonLocal PageRank algorihtm, it
+            avoids recomputing it at each predicition sweep
 
         eligible : a string or None
             If this is a string, it is used to distinguish between eligible
@@ -51,6 +54,7 @@ class Predictor(object):
 
         """
         self.G = G
+        self.DistanceMatrix = DistanceMatrix
         self.eligible_attr = eligible
         self.name = self.__class__.__name__
         self.excluded = [] if excluded is None else excluded

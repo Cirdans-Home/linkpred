@@ -149,11 +149,26 @@ class NonLocalPageRank(Predictor):
                 continue
             if k is None:
                 G = self.G
+                W = np.copy(self.DistanceMatrix)
             else:
                 # Restrict to the k-neighbourhood subgraph
                 G = nx.ego_graph(self.G, u, radius=k)
+                W = nx.floyd_warshall_numpy(G)
 
-            pagerank_scores = nonlocal_pagerank(G, u, alpha, beta, weight, type, gamma)
+            # To make the call faster we compute just one time the distance
+            # matrix
+            P = np.asarray(W)
+            if type == "power":
+                P[P != 0] = 1.0/np.power(P[P != 0],gamma)
+            else:
+                P[P != 0] = np.exp(-gamma*P[P != 0])
+        
+            S = scipy.array(P.sum(axis=1)).flatten()
+            S[S != 0] = 1.0 / S[S != 0]
+            Q = scipy.sparse.spdiags(S.T, 0, *P.shape, format='csr')
+            P = Q * P
+            
+            pagerank_scores = nonlocal_pagerank(G, P, S, u, alpha, beta, weight, type, gamma)
 
             for v, w in pagerank_scores.items():
                 if w > 0 and u != v and self.eligible_node(v):

@@ -13,12 +13,12 @@ import random
 import networkx as nx
 from matplotlib import pyplot as plt
 from sklearn.metrics import auc
-from numpy import floor, logspace, array, asarray
+from numpy import floor, logspace, array
 
 random.seed(100)
 
 # Read network
-G = linkpred.read_network('NonLocalPageRankExamples/netscience.net')
+G = linkpred.read_network('NonLocalPageRankExamples/USAir97.net')
 
 # We remove self loops
 G.remove_edges_from(nx.selfloop_edges(G))
@@ -60,10 +60,16 @@ auclocal = auc(evaluationpr.recall(), evaluationpr.precision())
 ax.plot(evaluationpr.recall(), evaluationpr.precision(),label='PageRank')
 
 ## LinkPrediction with the NonLocal (Rooted) PageRank
+# We have modified the original predictors class to include a key for the 
+# distance matrix, in this way we can compute it just one time for all the
+# iteration. If the parameter k is passed, i.e., if we require the analysis to
+# work on a neighboroud of the node, then the precomputation is unnecessary,
+# because it is then done on the fly on the reduced graph. 
+W = nx.floyd_warshall_numpy(training) 
 index = 0
 aucnonlocal = array([0.,1.,2.,3.,4.,5.])
 for gamma in logspace(-2.0, 1.0, num=6, endpoint=True): # Coefficient of the NonLocality
-    rootnonlocal = linkpred.predictors.NonLocalPageRank(training, excluded=training.edges())
+    rootnonlocal = linkpred.predictors.NonLocalPageRank(training, DistanceMatrix=W, excluded=training.edges())
     rootnonlocal_results = rootnonlocal.predict(gamma = gamma)
     test_set = set(linkpred.evaluation.Pair(u, v) for u, v in test.edges())
     evaluation_nonlocal = linkpred.evaluation.EvaluationSheet(rootnonlocal_results, test_set)
@@ -72,7 +78,16 @@ for gamma in logspace(-2.0, 1.0, num=6, endpoint=True): # Coefficient of the Non
     ax.loglog(evaluation_nonlocal.recall(), evaluation_nonlocal.precision(),label='NonLocal PageRank alpha='+str(gamma))
 
 
-#ax.axis('equal')
+# Plot of the results
 leg = ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., frameon=False);
-fig
-fig.savefig('USAir97.eps', format='eps')
+fig.savefig('USAir97.eps', bbox_extra_artists=(leg,), bbox_inches='tight', format='eps')
+
+# Save the AUC to file
+outfile = open("linkpredlog.txt","a+")
+outfile.write("Baseline AUC "+str(aucbaseline)+"\n")
+outfile.write("PageRank AUC "+str(auclocal)+"\n")
+index = 0
+for gamma in logspace(-2.0, 1.0, num=6, endpoint=True):
+    outfile.write("NonLocal PageRank "+str(gamma)+" AUC "+str(aucnonlocal[index])+"\n")
+    index=index+1
+outfile.close()

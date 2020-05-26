@@ -96,7 +96,7 @@ def raw_google_matrix(G, nodelist=None, weight="weight"):
     M = M / M.sum(axis=1)
     return M
 
-def nonlocal_pagerank(G, root, alpha=0.85, beta=0, weight="weight", type="power", gamma=1):
+def nonlocal_pagerank(G, P, S, root, alpha=0.85, beta=0, weight="weight", type="power", gamma=1):
     """Return the NonLocal PageRank of all nodes with respect to node `root`
 
     Parameters
@@ -134,21 +134,11 @@ def nonlocal_pagerank(G, root, alpha=0.85, beta=0, weight="weight", type="power"
     personalization[root] = 1 - beta
 
     nodelist = G.nodes()
-    P = np.asarray(nx.floyd_warshall_numpy(G,weight=weight))
-    N = P.shape[0]
-    if type == "power":
-        P[P != 0] = 1.0/np.power(P[P != 0],gamma)
-    else:
-        P[P != 0] = np.exp(-gamma*P[P != 0])
 
-    S = scipy.array(P.sum(axis=1)).flatten()
-    S[S != 0] = 1.0 / S[S != 0]
-    Q = scipy.sparse.spdiags(S.T, 0, *P.shape, format='csr')
-    P = Q * P
+    N = P.shape[0]
 
     # initial vector
     x = scipy.repeat(1.0 / N, N)
-
 
     # Personalization vector
     if personalization is None:

@@ -249,7 +249,7 @@ class LinkPred(object):
 
             log.info("Executing %s...", label)
             predictor = predictor_class(
-                self.training, eligible=self.config["eligible"], excluded=self.excluded
+                self.training, DistanceMatrix=self.DistanceMatrix, eligible=self.config["eligible"], excluded=self.excluded
             )
             scoresheet = predictor.predict(**params)
             log.info("Finished executing %s.", label)
