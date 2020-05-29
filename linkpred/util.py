@@ -1,5 +1,8 @@
 import itertools
 import sys
+import networkx as nx
+import numpy as np
+import scipy as sp
 
 
 def all_pairs(iterable):
@@ -78,3 +81,25 @@ def itersubclasses(cls, _seen=None):
             yield sub
             for sub in itersubclasses(sub, _seen):
                 yield sub
+
+def logarithmic_distance(G):
+    if G.is_directed():
+        L = nx.directed_combinatorial_laplacian_matrix(G)
+    else:
+        L = nx.laplacian_matrix(G) 
+    I = sp.sparse.identity(G.number_of_nodes())
+    e = np.ones([1,G.number_of_nodes()])
+    L = I+L
+    if not G.is_directed():
+        L = L.tocsc()
+        H = sp.sparse.linalg.inv(L)
+    else:
+        H = np.linalg.inv(L)
+    H[H<0] = 0.0
+    H.data = np.log(H.data)
+    h = H.diagonal()
+    H = np.outer(h,e) - H
+    H = 0.5*(H + H.transpose())
+    
+    return H
+    
